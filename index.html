@@ -51,3 +51,14 @@
 </html>
 <- Приложение: Тестовое изменение для проверки webhook -->
 <-- Тестовое изменение для проверки webhook -->
+
+    <div class="container" style="margin-top: 20px; border: 2px solid #4d90cd;">
+        <h2 style="color: #4d90cd;">🎯 Автоматическое развертывание работает!</h2>
+        <p><strong>Время деплоя:</strong> <span id="deploy-time"></span></p>
+        <p>Это изменение было автоматически развернуто через GitHub Webhook!</p>
+        <p><strong>Студент:</strong> belov</p>
+    </div>
+
+    <script>
+        document.getElementById('deploy-time').textContent = new Date().toLocaleString('ru-RU');
+    </script>
