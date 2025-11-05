@@ -1,0 +1,21 @@
+# Logs
+*.log
+webhook.log
+nohup.out
+
+# Temporary files
+*.pid
+*.tmp
+__pycache__/
+*.pyc
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.secrets
+
+# FRP config (может содержать токены)
+frpc.toml
