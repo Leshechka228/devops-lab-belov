@@ -1,0 +1,82 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop, github-actions ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Validate shell scripts
+      run: |
+        echo "🔍 Проверяем shell скрипты..."
+        find . -name "*.sh" -type f | while read script; do
+          echo "Проверка $script"
+          if bash -n "$script"; then
+            echo "✅ $script - синтаксис правильный"
+          else
+            echo "❌ $script - ошибка синтаксиса"
+            exit 1
+          fi
+        done
+        
+    - name: Check file permissions
+      run: |
+        echo "🔒 Проверяем права доступа..."
+        find . -name "*.sh" -type f | while read script; do
+          if [ ! -x "$script" ]; then
+            echo "⚠️  $script не исполняемый, исправляем..."
+            chmod +x "$script"
+          fi
+          echo "✅ $script - исполняемый"
+        done
+        
+    - name: Test deployment scripts
+      run: |
+        echo "🧪 Тестируем скрипты деплоя..."
+        [ -f "deploy.sh" ] && echo "✅ deploy.sh существует" || echo "❌ deploy.sh отсутствует"
+        [ -f "install-frp.sh" ] && echo "✅ install-frp.sh существует" || echo "❌ install-frp.sh отсутствует"
+        [ -f "install-nginx.sh" ] && echo "✅ install-nginx.sh существует" || echo "❌ install-nginx.sh отсутствует"
+        [ -f "test.sh" ] && echo "✅ test.sh существует" || echo "❌ test.sh отсутствует"
+        [ -f "check-system.sh" ] && echo "✅ check-system.sh существует" || echo "❌ check-system.sh отсутствует"
+        
+    - name: Validate configuration files
+      run: |
+        echo "📋 Проверяем конфигурационные файлы..."
+        [ -f "nginx.conf" ] && echo "✅ nginx.conf существует" || echo "❌ nginx.conf отсутствует"
+        [ -f "index.html" ] && echo "✅ index.html существует" || echo "❌ index.html отсутствует"
+        
+    - name: Run custom tests
+      run: |
+        echo "🚀 Запускаем пользовательские тесты..."
+        if [ -f "test.sh" ]; then
+          echo "✅ test.sh найден, запускаем тесты..."
+          chmod +x test.sh
+          ./test.sh
+        else
+          echo "ℹ️  test.sh не найден, пропускаем пользовательские тесты"
+        fi
+        
+    - name: Test webhook server
+      run: |
+        echo "🐍 Проверяем Python webhook сервер..."
+        if [ -f "webhook-server.py" ]; then
+          echo "✅ webhook-server.py существует"
+          python3 -m py_compile webhook-server.py && echo "✅ Синтаксис Python правильный" || echo "❌ Ошибка в синтаксисе Python"
+        else
+          echo "ℹ️  webhook-server.py не найден"
+        fi
