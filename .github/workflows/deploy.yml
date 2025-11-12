@@ -1,0 +1,95 @@
+name: CD Pipeline
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # Разрешаем ручной запуск
+
+env:
+  SSH_HOST: 'course.prafdin.ru'
+  SSH_PORT: '2481'
+  SSH_USERNAME: 'alexey'
+  APP_DIR: '/home/alexey/devops-lab'
+  ID: 'belov'
+  PROXY: 'course.prafdin.ru'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run CI tests
+      run: |
+        echo "🧪 Запускаем тесты перед деплоем..."
+        chmod +x test.sh
+        ./test.sh
+        
+    - name: Validate deployment files
+      run: |
+        echo "📋 Проверяем файлы для деплоя..."
+        [ -f "index.html" ] && echo "✅ index.html готов" || exit 1
+        [ -f "nginx.conf" ] && echo "✅ nginx.conf готов" || exit 1
+        [ -f "deploy.sh" ] && echo "✅ deploy.sh готов" || exit 1
+        
+        # Проверяем что в index.html есть нужные данные
+        grep -q "belov" index.html && echo "✅ Имя студента в index.html" || exit 1
+        grep -q "🚀" index.html && echo "✅ Ракета в index.html" || exit 1
+        
+    - name: Deploy to VM via SSH
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ env.SSH_HOST }}
+        port: ${{ env.SSH_PORT }}
+        username: ${{ env.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          echo "🚀 Начинаем деплой на VM..."
+          cd ${{ env.APP_DIR }}
+          
+          # Обновляем код
+          echo "📥 Обновляем код из репозитория..."
+          git fetch origin
+          git reset --hard origin/github-actions
+          
+          # Проверяем файлы
+          echo "🔍 Проверяем файлы проекта..."
+          ls -la
+          [ -f "index.html" ] && echo "✅ index.html существует" || exit 1
+          [ -f "deploy.sh" ] && echo "✅ deploy.sh существует" || exit 1
+          
+          # Запускаем тесты на целевой машине
+          echo "🧪 Запускаем тесты на целевой машине..."
+          chmod +x test.sh
+          ./test.sh
+          
+          # Выполняем деплой
+          echo "🔄 Запускаем деплой..."
+          chmod +x deploy.sh
+          ./deploy.sh
+          
+          echo "✅ Деплой завершен успешно!"
+          
+    - name: Verify deployment
+      run: |
+        echo "🔍 Проверяем доступность приложения..."
+        APP_URL="http://app.${{ env.ID }}.${{ env.PROXY }}"
+        echo "Проверяем URL: $APP_URL"
+        
+        # Даем время на развертывание
+        sleep 10
+        
+        # Проверяем доступность
+        if curl -s -f "$APP_URL" > /dev/null; then
+          echo "✅ Приложение успешно развернуто и доступно"
+        else
+          echo "❌ Приложение недоступно по адресу $APP_URL"
+          exit 1
+        fi
+        
+    - name: Notify success
+      run: |
+        echo "🎉 CD Pipeline выполнен успешно!"
+        echo "🌐 Приложение доступно по адресу: http://app.${{ env.ID }}.${{ env.PROXY }}"
