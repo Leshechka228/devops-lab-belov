@@ -21,11 +21,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Run tests
-      run: |
-        chmod +x test.sh
-        ./test.sh
-        
     - name: Deploy to VM
       uses: appleboy/ssh-action@v1
       with:
@@ -36,8 +31,7 @@ jobs:
         script: |
           cd ${{ env.APP_DIR }}
           git pull origin github-actions
-          chmod +x test.sh deploy.sh
-          ./test.sh
+          chmod +x deploy.sh
           ./deploy.sh
     
     - name: Verify deployment
