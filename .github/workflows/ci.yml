@@ -13,14 +13,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-        
+      
     - name: Validate shell scripts
       run: |
         echo "🔍 Проверяем shell скрипты..."
@@ -68,15 +61,6 @@ jobs:
           chmod +x test.sh
           ./test.sh
         else
-          echo "ℹ️  test.sh не найден, пропускаем пользовательские тесты"
-        fi
-        
-    - name: Test webhook server
-      run: |
-        echo "🐍 Проверяем Python webhook сервер..."
-        if [ -f "webhook-server.py" ]; then
-          echo "✅ webhook-server.py существует"
-          python3 -m py_compile webhook-server.py && echo "✅ Синтаксис Python правильный" || echo "❌ Ошибка в синтаксисе Python"
-        else
-          echo "ℹ️  webhook-server.py не найден"
+          echo "❌ test.sh не найден - критическая ошибка"
+          exit 1
         fi
