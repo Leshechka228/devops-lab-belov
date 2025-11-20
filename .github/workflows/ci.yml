@@ -11,7 +11,6 @@ env:
   IMAGE_NAME: leshechka228/devops-lab
 
 jobs:
-  # Существующие тесты
   test:
     runs-on: ubuntu-latest
     
@@ -51,6 +50,7 @@ jobs:
         [ -f "install-nginx.sh" ] && echo "✅ install-nginx.sh существует" || echo "❌ install-nginx.sh отсутствует"
         [ -f "test.sh" ] && echo "✅ test.sh существует" || echo "❌ test.sh отсутствует"
         [ -f "check-system.sh" ] && echo "✅ check-system.sh существует" || echo "❌ check-system.sh отсутствует"
+        [ -f "Dockerfile" ] && echo "✅ Dockerfile существует" || echo "❌ Dockerfile отсутствует"
         
     - name: Validate configuration files
       run: |
@@ -58,6 +58,7 @@ jobs:
         [ -f "nginx.conf" ] && echo "✅ nginx.conf существует" || echo "❌ nginx.conf отсутствует"
         [ -f "index.html" ] && echo "✅ index.html существует" || echo "❌ index.html отсутствует"
         [ -f "Dockerfile" ] && echo "✅ Dockerfile существует" || echo "❌ Dockerfile отсутствует"
+        [ -f "nginx-docker.conf" ] && echo "✅ nginx-docker.conf существует" || echo "❌ nginx-docker.conf отсутствует"
         
     - name: Run custom tests
       run: |
@@ -71,7 +72,6 @@ jobs:
           exit 1
         fi
 
-  # Линтинг Dockerfile
   docker-lint:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -86,7 +86,6 @@ jobs:
         dockerfile: ./Dockerfile
         failure-threshold: warning
 
-  # Сборка Docker образа
   docker-build:
     needs: [test, docker-lint]
     runs-on: ubuntu-latest
@@ -123,6 +122,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
