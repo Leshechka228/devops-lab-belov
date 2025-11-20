@@ -5,7 +5,7 @@ on:
     types: [published]
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, github-actions ]
 
 env:
   SSH_HOST: 'course.prafdin.ru'
@@ -42,7 +42,7 @@ jobs:
           sudo docker stop static-site-container || true
           sudo docker rm -f static-site-container || true
           
-          # Собираем образ локально (так как нет доступа к registry)
+          # Собираем образ локально
           echo "🔨 Building Docker image locally..."
           sudo docker build -t my-static-site .
           
@@ -63,18 +63,10 @@ jobs:
       run: |
         echo "🔍 Verifying deployment..."
         APP_URL="http://app.${{ env.ID }}.${{ env.PROXY }}"
-        
-        # Ждем пока приложение поднимется
         sleep 10
-        
-        # Проверяем доступность
         if curl -s -f "$APP_URL" > /dev/null; then
           echo "✅ Application is accessible at: $APP_URL"
         else
-          echo "❌ Application is not accessible at: $APP_URL"
-          echo "⚠️  This might be normal if FRP is not configured"
+          echo "⚠️  Application might not be accessible externally (FRP config)"
         fi
-        
-        # Проверяем локально через SSH
-        echo "🔍 Checking via SSH..."
         curl -s "http://localhost:8181" | grep -q "belov" && echo "✅ Content verified - 'belov' found" || echo "❌ Content verification failed"
