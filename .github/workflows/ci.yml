@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: leshechka228/devops-lab
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -46,12 +50,15 @@ jobs:
         [ -f "install-nginx.sh" ] && echo "✅ install-nginx.sh существует" || echo "❌ install-nginx.sh отсутствует"
         [ -f "test.sh" ] && echo "✅ test.sh существует" || echo "❌ test.sh отсутствует"
         [ -f "check-system.sh" ] && echo "✅ check-system.sh существует" || echo "❌ check-system.sh отсутствует"
+        [ -f "Dockerfile" ] && echo "✅ Dockerfile существует" || echo "❌ Dockerfile отсутствует"
         
     - name: Validate configuration files
       run: |
         echo "📋 Проверяем конфигурационные файлы..."
         [ -f "nginx.conf" ] && echo "✅ nginx.conf существует" || echo "❌ nginx.conf отсутствует"
         [ -f "index.html" ] && echo "✅ index.html существует" || echo "❌ index.html отсутствует"
+        [ -f "Dockerfile" ] && echo "✅ Dockerfile существует" || echo "❌ Dockerfile отсутствует"
+        [ -f "nginx-docker.conf" ] && echo "✅ nginx-docker.conf существует" || echo "❌ nginx-docker.conf отсутствует"
         
     - name: Run custom tests
       run: |
@@ -64,3 +71,65 @@ jobs:
           echo "❌ test.sh не найден - критическая ошибка"
           exit 1
         fi
+
+  docker-lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Hadolint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: ./Dockerfile
+        failure-threshold: warning
+
+  docker-build:
+    needs: [test, docker-lint]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix=
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Output image info
+      run: |
+        echo "📦 Собранные образы:"
+        echo "${{ steps.meta.outputs.tags }}"
