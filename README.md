@@ -19,3 +19,4 @@ devops-lab/
 - **App URL**: http://app.belov.course.prafdin.ru
 # Docker CI/CD Test - Package is now public
 # Testing CI with package access configured
+# CD Pipeline Test - Docker Deployment
