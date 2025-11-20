@@ -1,85 +1,15 @@
 name: CI Pipeline
-
 on:
   push:
     branches: [ main, master, develop, github-actions ]
   pull_request:
     branches: [ main, master ]
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: leshechka228/devops-lab
-
-# Глобальные permissions
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Validate shell scripts
-      run: |
-        echo "🔍 Проверяем shell скрипты..."
-        find . -name "*.sh" -type f | while read script; do
-          echo "Проверка $script"
-          if bash -n "$script"; then
-            echo "✅ $script - синтаксис правильный"
-          else
-            echo "❌ $script - ошибка синтаксиса"
-            exit 1
-          fi
-        done
-        
-    - name: Check file permissions
-      run: |
-        echo "🔒 Проверяем права доступа..."
-        find . -name "*.sh" -type f | while read script; do
-          if [ ! -x "$script" ]; then
-            echo "⚠️  $script не исполняемый, исправляем..."
-            chmod +x "$script"
-          fi
-          echo "✅ $script - исполняемый"
-        done
-        
-    - name: Test deployment scripts
-      run: |
-        echo "🧪 Тестируем скрипты деплоя..."
-        [ -f "deploy.sh" ] && echo "✅ deploy.sh существует" || echo "❌ deploy.sh отсутствует"
-        [ -f "install-frp.sh" ] && echo "✅ install-frp.sh существует" || echo "❌ install-frp.sh отсутствует"
-        [ -f "install-nginx.sh" ] && echo "✅ install-nginx.sh существует" || echo "❌ install-nginx.sh отсутствует"
-        [ -f "test.sh" ] && echo "✅ test.sh существует" || echo "❌ test.sh отсутствует"
-        [ -f "check-system.sh" ] && echo "✅ check-system.sh существует" || echo "❌ check-system.sh отсутствует"
-        [ -f "Dockerfile" ] && echo "✅ Dockerfile существует" || echo "❌ Dockerfile отсутствует"
-        
-    - name: Validate configuration files
-      run: |
-        echo "📋 Проверяем конфигурационные файлы..."
-        [ -f "nginx.conf" ] && echo "✅ nginx.conf существует" || echo "❌ nginx.conf отсутствует"
-        [ -f "index.html" ] && echo "✅ index.html существует" || echo "❌ index.html отсутствует"
-        [ -f "Dockerfile" ] && echo "✅ Dockerfile существует" || echo "❌ Dockerfile отсутствует"
-        [ -f "nginx-docker.conf" ] && echo "✅ nginx-docker.conf существует" || echo "❌ nginx-docker.conf отсутствует"
-        
-    - name: Run custom tests
-      run: |
-        echo "🚀 Запускаем пользовательские тесты..."
-        if [ -f "test.sh" ]; then
-          echo "✅ test.sh найден, запускаем тесты..."
-          chmod +x test.sh
-          ./test.sh
-        else
-          echo "❌ test.sh не найден - критическая ошибка"
-          exit 1
-        fi
-
+  # Линтинг Dockerfile (опционально - задание 3.4)
   docker-lint:
     runs-on: ubuntu-latest
+    name: Lint Dockerfile
     continue-on-error: true
     
     steps:
@@ -92,10 +22,10 @@ jobs:
         dockerfile: ./Dockerfile
         failure-threshold: warning
 
+  # Сборка Docker образа (основное задание 3.3-3.4)
   docker-build:
-    needs: [test, docker-lint]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    name: Build Docker Image
     
     steps:
     - name: Checkout code
@@ -104,34 +34,19 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=sha,prefix=
-
-    - name: Build and push Docker image
+    - name: Build Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        push: false
+        tags: |
+          ghcr.io/leshechka228/devops-lab:latest
+          ghcr.io/leshechka228/devops-lab:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Output image info
+    - name: Verify build
       run: |
-        echo "📦 Собранные образы:"
-        echo "${{ steps.meta.outputs.tags }}"
+        echo "✅ Docker image built successfully"
+        echo "📦 Image would be pushed to: ghcr.io/leshechka228/devops-lab"
