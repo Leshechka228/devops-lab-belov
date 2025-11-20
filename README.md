@@ -18,3 +18,4 @@ devops-lab/
 - **Webhook URL**: http://webhook.belov.course.prafdin.ru
 - **App URL**: http://app.belov.course.prafdin.ru
 # Docker CI/CD Test - Package is now public
+# Testing CI with package access configured
