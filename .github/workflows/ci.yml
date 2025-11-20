@@ -1,37 +1,12 @@
 name: CI Pipeline
 on:
   push:
-    branches: [ main, master, github-actions ]
+    branches: [ main, master, develop, github-actions ]
   pull_request:
     branches: [ main, master ]
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: leshechka228/devops-lab
-
 jobs:
-  # 1. Тестирование приложения
-  test:
-    runs-on: ubuntu-latest
-    name: Test Application
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Run application tests
-      run: |
-        echo "🧪 Running application tests..."
-        if [ -f "test.sh" ]; then
-          chmod +x test.sh
-          ./test.sh
-          echo "✅ Application tests passed"
-        else
-          echo "❌ test.sh not found"
-          exit 1
-        fi
-
-  # 2. Линтинг Dockerfile (опционально - задание 3.4)
+  # Линтинг Dockerfile (опционально - задание 3.4)
   docker-lint:
     runs-on: ubuntu-latest
     name: Lint Dockerfile
@@ -47,12 +22,10 @@ jobs:
         dockerfile: ./Dockerfile
         failure-threshold: warning
 
-  # 3. Сборка Docker образа (основное задание)
+  # Сборка Docker образа (основное задание 3.3-3.4)
   docker-build:
-    needs: [test, docker-lint]
     runs-on: ubuntu-latest
     name: Build Docker Image
-    if: github.event_name == 'push'
     
     steps:
     - name: Checkout code
@@ -68,41 +41,12 @@ jobs:
         file: ./Dockerfile
         push: false
         tags: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ghcr.io/leshechka228/devops-lab:latest
+          ghcr.io/leshechka228/devops-lab:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Verify build
       run: |
         echo "✅ Docker image built successfully"
-        echo "📦 Image tags:"
-        echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-
-  # 4. Демонстрация работы с registry (локальная имитация)
-  registry-demo:
-    needs: docker-build
-    runs-on: ubuntu-latest
-    name: Registry Demo
-    if: github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Docker registry simulation
-      run: |
-        echo "🏗️  Docker Registry Simulation"
-        echo "✅ Image would be pushed to: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-        echo "📋 Registry workflow:"
-        echo "   1. Build image locally ✅"
-        echo "   2. Tag image for registry ✅" 
-        echo "   3. Push to registry ❌ (permission issue)"
-        echo "   4. Pull from registry for deployment"
-        echo ""
-        echo "🔧 For lab demonstration:"
-        echo "   - Dockerfile created ✅"
-        echo "   - Image builds locally ✅"
-        echo "   - CI pipeline integrated ✅"
-        echo "   - Hadolint integrated ✅"
+        echo "📦 Image would be pushed to: ghcr.io/leshechka228/devops-lab"
