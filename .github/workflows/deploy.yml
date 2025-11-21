@@ -26,7 +26,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Deploy from Registry
+    - name: Deploy Docker container to VM
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ env.SSH_HOST }}
@@ -34,28 +34,26 @@ jobs:
         username: ${{ env.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          echo "🚀 Starting Docker deployment from Registry..."
+          echo "🚀 Starting Docker deployment..."
           cd ${{ env.APP_DIR }}
-          
-          echo "${{ secrets.PAT }}" | sudo docker login ghcr.io -u Leshechka228 --password-stdin
           
           echo "🛑 Stopping old container..."
           sudo docker stop static-site-container || true
           sudo docker rm -f static-site-container || true
           
-          echo "📥 Pulling image from registry..."
-          sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo "🔨 Building Docker image locally..."
+          sudo docker build -t my-static-site .
           
           echo "🎯 Starting new container..."
           sudo docker run -d \
             --name static-site-container \
             -p 8181:8181 \
             --restart unless-stopped \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            my-static-site
           
           echo "🔍 Checking container status..."
           sudo docker ps | grep static-site-container
-          echo "✅ Docker deployment from registry completed!"
+          echo "✅ Docker deployment completed!"
     
     - name: Verify deployment
       run: |
@@ -65,5 +63,6 @@ jobs:
         if curl -s -f "$APP_URL" > /dev/null; then
           echo "✅ Application is accessible at: $APP_URL"
         else
-          echo "⚠️  Application might not be accessible externally"
+          echo "⚠️  Application might not be accessible externally (FRP config)"
         fi
+        curl -s "http://localhost:8181" | grep -q "belov" && echo "✅ Content verified - 'belov' found" || echo "❌ Content verification failed"
