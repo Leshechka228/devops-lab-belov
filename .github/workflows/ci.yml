@@ -4,6 +4,10 @@ on:
     branches: [ main, master, develop, github-actions ]
   pull_request:
     branches: [ main, master ]
+    
+permissions:
+  contents: read
+  packages: write
 
 env:
   REGISTRY: ghcr.io
