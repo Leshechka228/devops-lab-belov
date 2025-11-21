@@ -26,7 +26,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Deploy Docker container to VM
+    - name: Deploy from Registry
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ env.SSH_HOST }}
@@ -34,30 +34,28 @@ jobs:
         username: ${{ env.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          echo "🚀 Starting Docker deployment..."
+          echo "🚀 Starting Docker deployment from Registry..."
           cd ${{ env.APP_DIR }}
           
-          # Останавливаем старый контейнер
+          echo "${{ secrets.PAT }}" | sudo docker login ghcr.io -u Leshechka228 --password-stdin
+          
           echo "🛑 Stopping old container..."
           sudo docker stop static-site-container || true
           sudo docker rm -f static-site-container || true
           
-          # Собираем образ локально
-          echo "🔨 Building Docker image locally..."
-          sudo docker build -t my-static-site .
+          echo "📥 Pulling image from registry..."
+          sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           
-          # Запускаем новый контейнер
           echo "🎯 Starting new container..."
           sudo docker run -d \
             --name static-site-container \
             -p 8181:8181 \
             --restart unless-stopped \
-            my-static-site
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           
-          # Проверяем что контейнер запустился
           echo "🔍 Checking container status..."
           sudo docker ps | grep static-site-container
-          echo "✅ Docker deployment completed!"
+          echo "✅ Docker deployment from registry completed!"
     
     - name: Verify deployment
       run: |
@@ -67,6 +65,5 @@ jobs:
         if curl -s -f "$APP_URL" > /dev/null; then
           echo "✅ Application is accessible at: $APP_URL"
         else
-          echo "⚠️  Application might not be accessible externally (FRP config)"
+          echo "⚠️  Application might not be accessible externally"
         fi
-        curl -s "http://localhost:8181" | grep -q "belov" && echo "✅ Content verified - 'belov' found" || echo "❌ Content verification failed"
