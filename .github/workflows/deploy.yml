@@ -32,55 +32,24 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           set -e
-          echo "🚀 Starting deployment..."
-          
-          # Login to GitHub Container Registry
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          echo "📥 Pulling latest Docker image..."
           docker pull ghcr.io/leshechka228/devops-lab:latest
           
-          echo "🛑 Stopping existing container..."
-          docker stop static-site-container 2>/dev/null || echo "No running container found"
-          docker rm static-site-container 2>/dev/null || echo "No container to remove"
+          docker stop static-site-container 2>/dev/null || true
+          docker rm -f static-site-container 2>/dev/null || true
           
-          echo "🎯 Starting new container..."
           docker run -d \
             --name static-site-container \
             --restart unless-stopped \
-            -p 8181:8181 \
+            -p 8282:8282 \
             ghcr.io/leshechka228/devops-lab:latest
           
-          echo "⏳ Waiting for container to start..."
           sleep 5
           
-          echo "🔍 Diagnostic information:"
-          echo "1. Container status:"
-          docker ps
-          echo ""
-          
-          echo "2. Testing application locally..."
-          if curl -s http://localhost:8181 | grep -q 'belov'; then
-            echo "✅ Local application is working - 'belov' found"
+          if curl -s http://localhost:8282 | grep -q 'belov'; then
+            echo "✅ Application is working"
           else
-            echo "❌ Local application check failed"
             docker logs static-site-container
+            exit 1
           fi
-          
-          echo "🧹 Cleaning up..."
-          docker image prune -f
-          
-          echo "🎉 Deployment completed!"
-          echo "🌐 App should be available at: http://app.${{ env.ID }}.${{ env.PROXY }}"
-
-    - name: Verify external access
-      run: |
-        echo "🔍 Verifying external access..."
-        APP_URL="http://app.${{ env.ID }}.${{ env.PROXY }}"
-        sleep 10
-        
-        if curl -s -f "$APP_URL" > /dev/null; then
-          echo "✅ Application is accessible at: $APP_URL"
-        else
-          echo "⚠️  Application might not be accessible externally (check FRP)"
-        fi
