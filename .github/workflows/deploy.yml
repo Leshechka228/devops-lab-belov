@@ -1,71 +1,88 @@
-name: CI Pipeline
+name: CD Pipeline
+
 on:
+  release:
+    types: [published]
+  workflow_dispatch:
   push:
-    branches: [ main, master, develop, github-actions ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, github-actions ]
+
+env:
+  SSH_HOST: 'course.prafdin.ru'
+  SSH_PORT: '2481'
+  SSH_USERNAME: 'alexey'
+  APP_DIR: '/home/alexey/devops-lab'
+  ID: 'belov'
+  PROXY: 'course.prafdin.ru'
+  REGISTRY: 'ghcr.io'
+  IMAGE_NAME: 'leshechka228/devops-lab'
 
 jobs:
-  docker-lint:
+  deploy:
     runs-on: ubuntu-latest
-    name: Lint Dockerfile
-    continue-on-error: true
+    name: Deploy Docker Container
+    permissions:
+      packages: read
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Run Hadolint
-      uses: hadolint/hadolint-action@v3.1.0
+    - name: Deploy from registry to VM
+      uses: appleboy/ssh-action@v1
       with:
-        dockerfile: ./Dockerfile
-        failure-threshold: warning
+        host: ${{ env.SSH_HOST }}
+        port: ${{ env.SSH_PORT }}
+        username: ${{ env.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          echo "🚀 Starting Docker deployment from registry..."
+          cd ${{ env.APP_DIR }}
+          
+          # Логинимся в GitHub Container Registry
+          echo "🔐 Logging into GitHub Container Registry..."
+          echo ${{ secrets.GITHUB_TOKEN }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          echo "📥 Pulling latest image from registry..."
+          sudo docker pull ghcr.io/leshechka228/devops-lab:latest
+          
+          echo "🛑 Stopping old container..."
+          sudo docker stop static-site-container || true
+          sudo docker rm -f static-site-container || true
+          
+          echo "🎯 Starting new container from registry image..."
+          sudo docker run -d \
+            --name static-site-container \
+            -p 8181:8181 \
+            --restart unless-stopped \
+            ghcr.io/leshechka228/devops-lab:latest
+          
+          echo "🔍 Checking container status..."
+          sudo docker ps | grep static-site-container
+          echo "📋 Checking running containers..."
+          sudo docker ps -a
+          echo "✅ Docker deployment from registry completed!"
+          
+          # Очистка старых образов
+          echo "🧹 Cleaning up unused images..."
+          sudo docker image prune -f
 
-  docker-build-push:
-    runs-on: ubuntu-latest
-    name: Build and Push Docker Image
-    permissions:
-      contents: read
-      packages: write
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ghcr.io/leshechka228/devops-lab
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Verify push
+    - name: Verify deployment
       run: |
-        echo "✅ Docker image built and pushed successfully"
-        echo "📦 Image available at: ghcr.io/leshechka228/devops-lab"
+        echo "🔍 Verifying deployment..."
+        APP_URL="http://app.${{ env.ID }}.${{ env.PROXY }}"
+        sleep 10
+        
+        # Проверка через внешний URL
+        if curl -s -f "$APP_URL" > /dev/null; then
+          echo "✅ Application is accessible at: $APP_URL"
+        else
+          echo "⚠️  Application might not be accessible externally (check FRP config)"
+        fi
+        
+        # Проверка локально
+        echo "🔍 Checking local deployment..."
+        ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USERNAME }}@${{ env.SSH_HOST }} "
+          curl -s http://localhost:8181 | grep -q 'belov' && echo '✅ Content verified - belov found' || echo '❌ Content verification failed'
+          sudo docker logs static-site-container
+        "
