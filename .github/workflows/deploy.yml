@@ -40,23 +40,29 @@ jobs:
           echo "📥 Pulling latest Docker image..."
           docker pull ghcr.io/leshechka228/devops-lab:latest
           
-          echo "🛑 Stopping existing container..."
-          docker stop static-site-container 2>/dev/null || echo "No running container found"
-          docker rm -f static-site-container 2>/dev/null || echo "No container to remove"
-          
-          echo "🔧 Checking what's using port 8181..."
-          # Проверяем что использует порт 8181
-          sudo netstat -tulpn | grep :8181 || echo "Port 8181 is free"
-          
-          echo "🔄 Stopping any service on port 8181..."
-          # Останавливаем nginx если он запущен на порту 8181
+          echo "🛑 Stopping existing services on port 8181..."
+          # Останавливаем старый nginx если он запущен
           sudo systemctl stop nginx 2>/dev/null || echo "nginx not running or already stopped"
           
-          # Убиваем процессы на порту 8181
-          sudo fuser -k 8181/tcp 2>/dev/null || echo "No processes on port 8181"
+          # Останавливаем старый контейнер
+          docker stop static-site-container 2>/dev/null || echo "No container running"
+          docker rm -f static-site-container 2>/dev/null || echo "No container to remove"
           
-          # Даем время для освобождения порта
-          sleep 2
+          # Принудительно освобождаем порт
+          sudo fuser -k 8181/tcp 2>/dev/null || echo "Port 8181 already free"
+          sleep 3
+          
+          # Проверяем что порт свободен
+          echo "🔍 Checking port 8181..."
+          if sudo netstat -tulpn | grep -q :8181; then
+            echo "❌ Port 8181 is still in use!"
+            sudo netstat -tulpn | grep :8181
+            echo "Forcing cleanup..."
+            sudo ss -tulpn | grep :8181
+            exit 1
+          else
+            echo "✅ Port 8181 is free"
+          fi
           
           echo "🎯 Starting new container..."
           docker run -d \
@@ -74,7 +80,7 @@ jobs:
           echo ""
           
           echo "2. Port usage:"
-          sudo netstat -tulpn | grep :8181 || echo "Port 8181 not found in netstat"
+          sudo netstat -tulpn | grep :8181 || echo "Port 8181 not found (container might use different networking)"
           echo ""
           
           echo "3. Testing application locally..."
@@ -84,10 +90,12 @@ jobs:
             echo "❌ Local application check failed"
             echo "Container logs:"
             docker logs static-site-container
+            echo "Trying alternative check..."
+            docker exec static-site-container curl -s http://localhost:8181 | head -2
             exit 1
           fi
           
-          echo "🧹 Cleaning up..."
+          echo "🧹 Cleaning up Docker images..."
           docker image prune -f
           
           echo "🎉 Deployment completed!"
@@ -101,6 +109,8 @@ jobs:
         
         if curl -s -f "$APP_URL" > /dev/null; then
           echo "✅ Application is accessible at: $APP_URL"
+          echo "🎉 SUCCESS: Full CI/CD with Docker and Registry is working!"
         else
-          echo "⚠️  Application might not be accessible externally (check FRP)"
+          echo "⚠️  Application might not be accessible externally (check FRP config)"
+          echo "But local deployment was successful ✅"
         fi
