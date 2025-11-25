@@ -43,7 +43,7 @@ jobs:
           docker run -d \
             --name devops-app \
             --restart unless-stopped \
-            -p 8282:8282 \
+            -p 8383:8383 \
             ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:latest
           
           echo "⏳ === Waiting for container to start ==="
@@ -59,7 +59,7 @@ jobs:
           echo ""
           
           echo "3. Testing application..."
-          if curl -s http://localhost:8282 | grep -q 'belov'; then
+          if curl -s http://localhost:8383 | grep -q 'belov'; then
             echo "✅ Application is working and contains student name!"
           else
             echo "❌ Application failed or student name not found"
