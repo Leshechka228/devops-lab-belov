@@ -43,7 +43,7 @@ jobs:
           docker run -d \
             --name devops-app \
             --restart unless-stopped \
-            -p 8383:8383 \
+            -p 8383:8282 \
             ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:latest
           
           echo "⏳ === Waiting for container to start ==="
