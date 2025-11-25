@@ -42,7 +42,21 @@ jobs:
           
           echo "🛑 Stopping existing container..."
           docker stop static-site-container 2>/dev/null || echo "No running container found"
-          docker rm static-site-container 2>/dev/null || echo "No container to remove"
+          docker rm -f static-site-container 2>/dev/null || echo "No container to remove"
+          
+          echo "🔧 Checking what's using port 8181..."
+          # Проверяем что использует порт 8181
+          sudo netstat -tulpn | grep :8181 || echo "Port 8181 is free"
+          
+          echo "🔄 Stopping any service on port 8181..."
+          # Останавливаем nginx если он запущен на порту 8181
+          sudo systemctl stop nginx 2>/dev/null || echo "nginx not running or already stopped"
+          
+          # Убиваем процессы на порту 8181
+          sudo fuser -k 8181/tcp 2>/dev/null || echo "No processes on port 8181"
+          
+          # Даем время для освобождения порта
+          sleep 2
           
           echo "🎯 Starting new container..."
           docker run -d \
@@ -59,12 +73,18 @@ jobs:
           docker ps
           echo ""
           
-          echo "2. Testing application locally..."
-          if curl -s http://localhost:8181 | grep -q 'belov'; then
+          echo "2. Port usage:"
+          sudo netstat -tulpn | grep :8181 || echo "Port 8181 not found in netstat"
+          echo ""
+          
+          echo "3. Testing application locally..."
+          if curl -s --retry 3 --retry-delay 2 http://localhost:8181 | grep -q 'belov'; then
             echo "✅ Local application is working - 'belov' found"
           else
             echo "❌ Local application check failed"
+            echo "Container logs:"
             docker logs static-site-container
+            exit 1
           fi
           
           echo "🧹 Cleaning up..."
