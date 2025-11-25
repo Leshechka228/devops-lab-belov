@@ -42,12 +42,12 @@ jobs:
           docker run -d \
             --name static-site-container \
             --restart unless-stopped \
-            -p 8282:8282 \
+            -p 8181:8282 \
             ghcr.io/leshechka228/devops-lab:latest
           
           sleep 5
           
-          if curl -s http://localhost:8282 | grep -q 'belov'; then
+          if curl -s http://localhost:8181 | grep -q 'belov'; then
             echo "✅ Application is working"
           else
             docker logs static-site-container
