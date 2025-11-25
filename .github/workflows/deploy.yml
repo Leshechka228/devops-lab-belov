@@ -39,33 +39,32 @@ jobs:
           echo "🚀 Starting Docker deployment from registry..."
           cd ${{ env.APP_DIR }}
           
-          # Логинимся в GitHub Container Registry
           echo "🔐 Logging into GitHub Container Registry..."
-          echo ${{ secrets.GITHUB_TOKEN }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
           echo "📥 Pulling latest image from registry..."
-          sudo docker pull ghcr.io/leshechka228/devops-lab:latest
+          docker pull ghcr.io/leshechka228/devops-lab:latest
           
           echo "🛑 Stopping old container..."
-          sudo docker stop static-site-container || true
-          sudo docker rm -f static-site-container || true
+          docker stop static-site-container || true
+          docker rm -f static-site-container || true
           
           echo "🎯 Starting new container from registry image..."
-          sudo docker run -d \
+          docker run -d \
             --name static-site-container \
             -p 8181:8181 \
             --restart unless-stopped \
             ghcr.io/leshechka228/devops-lab:latest
           
           echo "🔍 Checking container status..."
-          sudo docker ps | grep static-site-container
+          docker ps | grep static-site-container
           echo "📋 Checking running containers..."
-          sudo docker ps -a
+          docker ps -a
           echo "✅ Docker deployment from registry completed!"
           
           # Очистка старых образов
           echo "🧹 Cleaning up unused images..."
-          sudo docker image prune -f
+          docker image prune -f
 
     - name: Verify deployment
       run: |
@@ -73,16 +72,14 @@ jobs:
         APP_URL="http://app.${{ env.ID }}.${{ env.PROXY }}"
         sleep 10
         
-        # Проверка через внешний URL
         if curl -s -f "$APP_URL" > /dev/null; then
           echo "✅ Application is accessible at: $APP_URL"
         else
           echo "⚠️  Application might not be accessible externally (check FRP config)"
         fi
         
-        # Проверка локально
         echo "🔍 Checking local deployment..."
         ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USERNAME }}@${{ env.SSH_HOST }} "
           curl -s http://localhost:8181 | grep -q 'belov' && echo '✅ Content verified - belov found' || echo '❌ Content verification failed'
-          sudo docker logs static-site-container
+          docker logs static-site-container
         "
