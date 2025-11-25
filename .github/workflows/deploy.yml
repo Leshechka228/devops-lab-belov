@@ -32,89 +32,24 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           set -e
-          echo "🚀 Starting deployment..."
-          
-          # Login to GitHub Container Registry
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          echo "📥 Pulling latest Docker image..."
           docker pull ghcr.io/leshechka228/devops-lab:latest
           
-          echo "🛑 Comprehensive cleanup of port 8181..."
+          docker stop static-site-container 2>/dev/null || true
+          docker rm -f static-site-container 2>/dev/null || true
           
-          # 1. Останавливаем контейнер
-          docker stop static-site-container 2>/dev/null || echo "No container to stop"
-          docker rm -f static-site-container 2>/dev/null || echo "No container to remove"
-          
-          # 2. Останавливаем nginx полностью
-          sudo systemctl stop nginx 2>/dev/null || echo "nginx already stopped"
-          sudo pkill -f nginx 2>/dev/null || echo "No nginx processes"
-          
-          # 3. Находим и убиваем ВСЕ процессы на порту 8181
-          echo "🔍 Finding processes using port 8181..."
-          sudo lsof -i :8181 || echo "No processes found with lsof"
-          
-          echo "🔄 Killing all processes on port 8181..."
-          sudo fuser -k 8181/tcp 2>/dev/null || echo "fuser didn't find processes"
-          sudo ss -tulpn | grep :8181 | awk '{print $7}' | cut -d= -f2 | sort -u | while read pid; do
-            if [ ! -z "$pid" ] && [ "$pid" != "-" ]; then
-              echo "Killing process $pid"
-              sudo kill -9 $pid 2>/dev/null || echo "Could not kill $pid"
-            fi
-          done
-          
-          # 4. Перезапускаем docker daemon чтобы очистить сетевые правила
-          echo "🔄 Restarting docker daemon..."
-          sudo systemctl restart docker
-          sleep 5
-          
-          # 5. Проверяем что порт свободен
-          echo "🔍 Final port check..."
-          if sudo netstat -tulpn | grep -q :8181; then
-            echo "❌ CRITICAL: Port 8181 is STILL in use after cleanup!"
-            echo "Processes using port 8181:"
-            sudo netstat -tulpn | grep :8181
-            sudo lsof -i :8181
-            echo "This is a system issue that needs manual intervention"
-            exit 1
-          else
-            echo "✅ Port 8181 is finally free!"
-          fi
-          
-          echo "🎯 Starting new container..."
           docker run -d \
             --name static-site-container \
             --restart unless-stopped \
-            -p 8181:8181 \
+            -p 8282:8282 \
             ghcr.io/leshechka228/devops-lab:latest
           
-          echo "⏳ Waiting for container to start..."
-          sleep 10
+          sleep 5
           
-          echo "🔍 Final verification:"
-          echo "1. Container status:"
-          docker ps
-          echo ""
-          
-          echo "2. Testing application..."
-          if curl -s http://localhost:8181 | grep -q 'belov'; then
-            echo "✅ SUCCESS: Application is working on port 8181!"
-            echo "🎉 Docker deployment with registry is COMPLETE!"
+          if curl -s http://localhost:8282 | grep -q 'belov'; then
+            echo "✅ Application is working"
           else
-            echo "❌ Application check failed"
             docker logs static-site-container
             exit 1
           fi
-
-    - name: Verify external access
-      run: |
-        echo "🔍 Verifying external access..."
-        APP_URL="http://app.${{ env.ID }}.${{ env.PROXY }}"
-        sleep 10
-        
-        if curl -s -f "$APP_URL" > /dev/null; then
-          echo "✅ SUCCESS: Application is accessible at: $APP_URL"
-          echo "🚀 FULL DOCKER CI/CD WITH REGISTRY IS WORKING!"
-        else
-          echo "⚠️ Application might not be accessible externally (FRP config)"
-        fi
