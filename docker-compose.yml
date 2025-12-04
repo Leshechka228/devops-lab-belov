@@ -3,7 +3,6 @@ version: '3.8'
 name: devops-lab-b4lov
 
 services:
-  # Backend API (Python Flask)
   backend:
     build: .
     container_name: belov-backend
@@ -21,17 +20,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    labels:
-      - "student=belov"
-      - "lab=4"
 
-  # Frontend (Nginx)
   frontend:
     image: nginx:alpine
     container_name: belov-frontend
     restart: unless-stopped
     ports:
-      - "8282:80"  # Ваш порт
+      - "8282:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./:/usr/share/nginx/html
@@ -42,11 +37,9 @@ services:
         condition: service_healthy
     networks:
       - belov-network
-    labels:
-      - "student=belov"
-      - "lab=4"
+    # ПРОСТОЙ healthcheck - проверяем что nginx запущен
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 10s
       retries: 3
