@@ -1,70 +1,385 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevOps Demo Сайт - belov</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #4d90cd;
-            text-align: center;
-        }
-        .info {
-            background-color: #e7f3ff;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀🚀🚀 DevOps Демонстрация - belov 🚀🚀🚀</h1>
-        <div class="info">
-            <p><strong>Версия:</strong> 1.0</p>
-            <p><strong>Студент:</strong> belov</p>
-            <p><strong>Дата:</strong> <span id="date"></span></p>
-            <p><strong>URL:</strong> http://app.belov.course.prafdin.ru</p>
-        </div>
-        <p>Это простой пример того, как Git становится источником правды для всей системы.</p>
-        <p>Весь код, конфигурация и скрипты развертывания хранятся в одном репозитории!</p>
-        <p><strong>Автоматическое развертывание через GitHub Webhook</strong></p>
-    </div>
+<!DOCTYPE HTML>
+<!--
+	DevOps Lab 4 - Docker Compose
+	Студент: belov
+-->
+<html>
+	<head>
+		<title>DevOps Lab 4 - Docker Compose - belov</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="assets/css/ie9.css" /><![endif]-->
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body>
 
-    <script>
-        document.getElementById('date').textContent = new Date().toLocaleDateString('ru-RU');
-    </script>
-<!-- CI Test: Build at $(date) -->
-</body>
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Header -->
+					<header id="header">
+						<div class="logo">
+							<span class="icon fa-diamond"></span>
+						</div>
+						<div class="content">
+							<div class="inner">
+								<h1>DevOps Lab 4</h1>
+								<p>Docker Compose - Мультиконтейнерное приложение<br />
+								Студент: <strong>belov</strong><br />
+								Дата: <span id="current-date"></span></p>
+							</div>
+						</div>
+						<nav>
+							<ul>
+								<li><a href="#lab-info">Lab Info</a></li>
+								<li><a href="#architecture">Architecture</a></li>
+								<li><a href="#feedbacks">Feedbacks</a></li>
+								<li><a href="#docker-compose">Docker Compose</a></li>
+								<li><a href="#api">API</a></li>
+							</ul>
+						</nav>
+					</header>
+
+				<!-- Main -->
+					<div id="main">
+
+						<!-- Lab Info -->
+							<article id="lab-info">
+								<h2 class="major">Lab Information</h2>
+								<span class="image main"><img src="images/pic01.jpg" alt="DevOps Lab" /></span>
+								<h3>Лабораторная работа №4</h3>
+								<p><strong>Тема:</strong> Docker Compose - Мультиконтейнерные приложения</p>
+								<p><strong>Студент:</strong> belov</p>
+								<p><strong>Дата выполнения:</strong> <span id="lab-date"></span></p>
+								<p><strong>GitHub Repo:</strong> <a href="https://github.com/ваш-репозиторий" target="_blank">devops-lab</a></p>
+								<p><strong>URL приложения:</strong> http://app.belov.course.prafdin.ru</p>
+								
+								<h3>Цель работы</h3>
+								<p>Получить навыки работы с Docker Compose, научиться управлять мультиконтейнерными приложениями, настроить взаимодействие между сервисами.</p>
+								
+								<h3>Требования</h3>
+								<ul>
+									<li>Мультиконтейнерное приложение (2+ сервиса)</li>
+									<li>Персистентный слой (volumes)</li>
+									<li>Docker Compose для оркестрации</li>
+									<li>CI/CD пайплайн с использованием docker compose</li>
+								</ul>
+							</article>
+
+						<!-- Architecture -->
+							<article id="architecture">
+								<h2 class="major">Architecture</h2>
+								<span class="image main"><img src="images/pic02.jpg" alt="Архитектура" /></span>
+								<h3>Архитектура приложения</h3>
+								<p>Приложение состоит из двух основных сервисов:</p>
+								
+								<h4>1. Frontend (Nginx)</h4>
+								<ul>
+									<li><strong>Образ:</strong> nginx:alpine</li>
+									<li><strong>Порт:</strong> 8282</li>
+									<li><strong>Роль:</strong> Статический веб-сервер</li>
+									<li><strong>Файлы:</strong> HTML, CSS, JavaScript</li>
+								</ul>
+								
+								<h4>2. Backend (Python Flask)</h4>
+								<ul>
+									<li><strong>Образ:</strong> python:3.9-slim</li>
+									<li><strong>Порт:</strong> 8080 (внутренний)</li>
+									<li><strong>Роль:</strong> REST API для отзывов</li>
+									<li><strong>Технологии:</strong> Flask, JSON storage</li>
+								</ul>
+								
+								<h4>Взаимодействие</h4>
+								<pre style="background: #2c3e50; color: white; padding: 15px; border-radius: 5px;">
+Пользователь → Frontend (8282) → Backend API (8080) → JSON Storage (Volume)
+								</pre>
+								
+								<h4>Docker Compose</h4>
+								<p>Все сервисы описаны в <code>docker-compose.yml</code>:</p>
+								<ul>
+									<li>Сеть: belov-network</li>
+									<li>Volume: feedback_data</li>
+									<li>Зависимости: frontend зависит от backend</li>
+									<li>Health checks для мониторинга</li>
+								</ul>
+							</article>
+
+						<!-- Feedbacks -->
+							<article id="feedbacks">
+								<h2 class="major">Feedbacks</h2>
+								<div id="feedback-list">
+									<!-- Отзывы будут загружаться через JavaScript -->
+									<p>Загрузка отзывов...</p>
+								</div>
+								
+								<h3>Добавить отзыв</h3>
+								<form id="feedback-form">
+									<div class="field half first">
+										<label for="name">Имя</label>
+										<input type="text" name="name" id="name" required />
+									</div>
+									<div class="field half">
+										<label for="email">Email</label>
+										<input type="email" name="email" id="email" />
+									</div>
+									<div class="field">
+										<label for="message">Отзыв</label>
+										<textarea name="message" id="message" rows="4" required></textarea>
+									</div>
+									<ul class="actions">
+										<li><input type="submit" value="Отправить" class="special" /></li>
+										<li><input type="reset" value="Очистить" /></li>
+									</ul>
+								</form>
+							</article>
+
+						<!-- Docker Compose -->
+							<article id="docker-compose">
+								<h2 class="major">Docker Compose</h2>
+								<h3>docker-compose.yml</h3>
+								<pre style="background: #2c3e50; color: white; padding: 15px; border-radius: 5px; overflow-x: auto;">
+version: '3.8'
+name: devops-lab-b4lov
+
+services:
+  backend:
+    build: .
+    container_name: belov-backend
+    restart: unless-stopped
+    volumes:
+      - feedback_data:/app
+    networks:
+      - belov-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/posts')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: nginx:alpine
+    container_name: belov-frontend
+    restart: unless-stopped
+    ports:
+      - "8282:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./:/usr/share/nginx/html
+      - ./assets:/usr/share/nginx/html/assets
+      - ./images:/usr/share/nginx/html/images
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - belov-network
+
+volumes:
+  feedback_data:
+
+networks:
+  belov-network:
+    driver: bridge
+								</pre>
+								
+								<h3>Команды управления</h3>
+								<ul>
+									<li><code>docker compose up -d</code> - запустить стек</li>
+									<li><code>docker compose down</code> - остановить стек</li>
+									<li><code>docker compose ps</code> - статус сервисов</li>
+									<li><code>docker compose logs</code> - просмотр логов</li>
+									<li><code>docker compose exec backend python backend.py</code> - выполнить команду в контейнере</li>
+								</ul>
+							</article>
+
+						<!-- API -->
+							<article id="api">
+								<h2 class="major">API Documentation</h2>
+								<h3>Backend API Endpoints</h3>
+								
+								<h4>GET /api/posts</h4>
+								<p>Получить все отзывы</p>
+								<pre><code>GET http://localhost:8080/api/posts</code></pre>
+								
+								<h4>POST /api/post</h4>
+								<p>Добавить новый отзыв</p>
+								<pre><code>POST http://localhost:8080/api/post
+Content-Type: application/json
+
+{
+  "name": "Имя",
+  "email": "email@example.com",
+  "message": "Текст отзыва",
+  "timestamp": "2024-01-01 12:00:00"
+}</code></pre>
+								
+								<h3>Тестирование API</h3>
+								<button onclick="testAPI()" class="button special">Протестировать API</button>
+								<div id="api-test-result" style="margin-top: 20px;"></div>
+								
+								<h3>Health Check</h3>
+								<button onclick="checkHealth()" class="button">Проверить здоровье сервисов</button>
+								<div id="health-check-result" style="margin-top: 20px;"></div>
+							</article>
+
+					</div>
+
+				<!-- Footer -->
+					<footer id="footer">
+						<p class="copyright">
+							&copy; DevOps Lab 4 - belov. 
+							Design: <a href="https://html5up.net">HTML5 UP</a>. 
+							Backend: Python Flask. 
+							Frontend: Nginx.
+						</p>
+					</footer>
+
+			</div>
+
+		<!-- BG -->
+			<div id="bg"></div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/skel.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+			
+		<!-- Custom Scripts -->
+		<script>
+			// Устанавливаем даты
+			document.getElementById('current-date').textContent = new Date().toLocaleDateString('ru-RU');
+			document.getElementById('lab-date').textContent = new Date().toLocaleDateString('ru-RU');
+			
+			// Загрузка отзывов
+			function loadFeedbacks() {
+				fetch('/api/posts')
+					.then(response => response.json())
+					.then(data => {
+						const container = document.getElementById('feedback-list');
+						if (data.length === 0) {
+							container.innerHTML = '<p>Пока нет отзывов. Будьте первым!</p>';
+							return;
+						}
+						
+						let html = '<h3>Последние отзывы (' + data.length + ')</h3>';
+						data.slice(-5).reverse().forEach(feedback => {
+							html += `
+								<div class="feedback-item" style="border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px;">
+									<strong>${feedback.name || 'Аноним'}</strong>
+									<small>${feedback.timestamp || ''}</small>
+									<p>${feedback.message}</p>
+									${feedback.email ? `<small>Email: ${feedback.email}</small>` : ''}
+								</div>
+							`;
+						});
+						container.innerHTML = html;
+					})
+					.catch(error => {
+						console.error('Error loading feedbacks:', error);
+						document.getElementById('feedback-list').innerHTML = 
+							'<p style="color: red;">Ошибка загрузки отзывов. Проверьте подключение к backend.</p>';
+					});
+			}
+			
+			// Отправка формы отзыва
+			document.getElementById('feedback-form').addEventListener('submit', function(e) {
+				e.preventDefault();
+				
+				const feedback = {
+					name: document.getElementById('name').value,
+					email: document.getElementById('email').value,
+					message: document.getElementById('message').value,
+					timestamp: new Date().toISOString(),
+					student: 'belov'
+				};
+				
+				fetch('/api/post', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(feedback)
+				})
+				.then(response => response.json())
+				.then(data => {
+					alert('Отзыв отправлен!');
+					document.getElementById('feedback-form').reset();
+					loadFeedbacks(); // Обновляем список
+				})
+				.catch(error => {
+					console.error('Error:', error);
+					alert('Ошибка отправки отзыва');
+				});
+			});
+			
+			// Тестирование API
+			function testAPI() {
+				const resultDiv = document.getElementById('api-test-result');
+				resultDiv.innerHTML = '<p>Тестирование API...</p>';
+				
+				fetch('/api/posts')
+					.then(response => {
+						if (response.ok) {
+							return response.json();
+						}
+						throw new Error('API не отвечает');
+					})
+					.then(data => {
+						resultDiv.innerHTML = `
+							<div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 5px;">
+								<strong>✅ API работает!</strong>
+								<p>Получено отзывов: ${data.length}</p>
+								<p>Статус: 200 OK</p>
+							</div>
+						`;
+					})
+					.catch(error => {
+						resultDiv.innerHTML = `
+							<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px;">
+								<strong>❌ Ошибка API!</strong>
+								<p>${error.message}</p>
+								<p>Проверьте:</p>
+								<ul>
+									<li>Запущен ли backend контейнер</li>
+									<li>Доступен ли порт 8080</li>
+									<li>Настроен ли nginx proxy</li>
+								</ul>
+							</div>
+						`;
+					});
+			}
+			
+			// Проверка здоровья
+			function checkHealth() {
+				const resultDiv = document.getElementById('health-check-result');
+				resultDiv.innerHTML = '<p>Проверка здоровья сервисов...</p>';
+				
+				// Простая проверка
+				Promise.all([
+					fetch('/api/posts').then(r => r.ok).catch(() => false),
+					fetch('/').then(r => r.ok).catch(() => false)
+				])
+				.then(results => {
+					const [apiOk, frontendOk] = results;
+					
+					resultDiv.innerHTML = `
+						<div style="background: #e7f3ff; padding: 15px; border-radius: 5px;">
+							<h4>Результаты проверки:</h4>
+							<p>Frontend (Nginx): ${frontendOk ? '✅ Работает' : '❌ Не работает'}</p>
+							<p>Backend API: ${apiOk ? '✅ Работает' : '❌ Не работает'}</p>
+							<p>Студент: <strong>belov</strong></p>
+							<small>Время проверки: ${new Date().toLocaleTimeString()}</small>
+						</div>
+					`;
+				});
+			}
+			
+			// Загружаем отзывы при открытии страницы
+			window.addEventListener('load', function() {
+				loadFeedbacks();
+			});
+		</script>
+
+	</body>
 </html>
-<- Приложение: Тестовое изменение для проверки webhook -->
-<-- Тестовое изменение для проверки webhook -->
-
-    <div class="container" style="margin-top: 20px; border: 2px solid #4d90cd;">
-        <h2 style="color: #4d90cd;">🎯 Автоматическое развертывание работает!</h2>
-        <p><strong>Время деплоя:</strong> <span id="deploy-time"></span></p>
-        <p>Это изменение было автоматически развернуто через GitHub Webhook!</p>
-        <p><strong>Студент:</strong> belov</p>
-    </div>
-
-    <script>
-        document.getElementById('deploy-time').textContent = new Date().toLocaleString('ru-RU');
-    </script>
-
-<div style="background:#4d90cd;color:white;padding:10px;text-align:center;">
-🚀 Деплой успешен! $(date)
-</div>
-<p style='color: rgb(11, 42, 200);'><strong> Деплой: 10:40:00</strong></p>

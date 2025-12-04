@@ -1,12 +1,24 @@
-FROM nginx:alpine
+FROM python:3.9-slim
 
-COPY index.html /usr/share/nginx/html/
+# Метаданные
+LABEL maintainer="belov"
+LABEL description="DevOps Lab 4 - Feedback API"
+LABEL version="1.0"
+LABEL student="belov"
 
-COPY nginx-docker.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8282/ || exit 1
+# Устанавливаем зависимости
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install flask-cors
 
-EXPOSE 8282
+# Копируем код
+COPY backend.py .
 
-CMD ["nginx", "-g", "daemon off;"]
+# Создаем volume директорию
+RUN mkdir -p /app/data
+VOLUME /app
+
+# Запускаем приложение
+CMD ["python", "-u", "backend.py"]

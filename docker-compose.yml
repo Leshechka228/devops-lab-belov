@@ -1,0 +1,61 @@
+version: '3.8'
+
+name: devops-lab-b4lov
+
+services:
+  # Backend API (Python Flask)
+  backend:
+    build: .
+    container_name: belov-backend
+    restart: unless-stopped
+    volumes:
+      - feedback_data:/app
+    environment:
+      - FLASK_ENV=production
+      - STUDENT_NAME=belov
+    networks:
+      - belov-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "student=belov"
+      - "lab=4"
+
+  # Frontend (Nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: belov-frontend
+    restart: unless-stopped
+    ports:
+      - "8282:80"  # Ваш порт
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./:/usr/share/nginx/html
+      - ./assets:/usr/share/nginx/html/assets
+      - ./images:/usr/share/nginx/html/images
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - belov-network
+    labels:
+      - "student=belov"
+      - "lab=4"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  feedback_data:
+    name: belov_feedback_data
+
+networks:
+  belov-network:
+    name: belov_devops_network
+    driver: bridge
