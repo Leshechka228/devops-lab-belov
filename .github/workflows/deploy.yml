@@ -1,16 +1,44 @@
+name: CD Pipeline - Lab4 Docker Compose
+
+on:
+  push:
+    branches: [lab4]
+  workflow_dispatch:
+
 env:
   SSH_HOST: 'course.prafdin.ru'
   SSH_PORT: '2481'
   SSH_USERNAME: 'alexey'
-  ID: 'belov'
-  PROXY: 'course.prafdin.ru'
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Deploy to VM
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and push Backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab-backend:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab-backend:${{ github.sha }}
+    
+    - name: Deploy to VM with Docker Compose
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ env.SSH_HOST }}
@@ -19,48 +47,56 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           set -e
-          echo "🚀 === Starting Docker deployment ==="
+          echo "=== Starting Docker Compose deployment - belov ==="
+          
+          cd /home/alexey/devops-lab
           
           # Login to Docker Hub
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
           
-          echo "📥 === Pulling latest Docker image ==="
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:latest
+          echo "=== Pulling latest Docker images ==="
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab-backend:latest
           
-          echo "🛑 === Stopping existing container ==="
-          docker stop devops-app 2>/dev/null || echo "No running container found"
-          docker rm devops-app 2>/dev/null || echo "No container to remove"
+          echo "=== Stopping any existing containers ==="
+          docker compose down || true
           
-          echo "🐳 === Starting new container ==="
-          docker run -d \
-            --name devops-app \
-            --restart unless-stopped \
-            -p 8282:8282 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:latest
+          echo "=== Checking port 8282 ==="
+          sudo ss -tulpn | grep 8281 && echo "Port 8281 is in use, killing process..." && sudo fuser -k 8281/tcp || echo "Port 8281 is free"
           
-          echo "⏳ === Waiting for container to start ==="
+          echo "=== Deploying with Docker Compose ==="
+          docker compose up -d
+          
+          echo "=== Waiting for containers to start ==="
           sleep 10
           
-          echo "🔍 === Diagnostic information ==="
+          echo "=== Diagnostic information ==="
           echo "1. Container status:"
-          docker ps
+          docker compose ps
           echo ""
           
-          echo "2. Container logs:"
-          docker logs devops-app
-          echo ""
-          
-          echo "3. Testing application..."
-          if curl -s http://localhost:8282 | grep -q 'belov'; then
-            echo "✅ Application is working and contains student name!"
+          echo "2. Testing static files..."
+          if curl -s http://localhost:8282/ | grep -q "belov"; then
+            echo "✅ Static files working and contains student name!"
           else
-            echo "❌ Application failed or student name not found"
-            docker logs devops-app
-            exit 1
+            echo "❌ Static files failed"
+            docker compose logs frontend --tail=10
           fi
+          echo ""
           
-          echo "🧹 === Cleaning up ==="
+          echo "3. Testing API..."
+          if curl -s http://localhost:8282/api/health | grep -q "healthy"; then
+            echo "✅ API working!"
+          else
+            echo "❌ API failed"
+            docker compose logs backend --tail=10
+          fi
+          echo ""
+          
+          echo "=== Cleaning up ==="
           docker image prune -f
           
-          echo "🎉 === Deployment completed successfully ==="
-          echo "🌐 App URL: http://app.${{ env.ID }}.${{ env.PROXY }}"
+          echo "=== Deployment completed successfully! ==="
+          echo "Application should be available at:"
+          echo "- Internal: http://localhost:8282"
+          echo "- External: http://app.belov.course.prafdin.ru"
+EOF
