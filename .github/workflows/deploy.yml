@@ -1,4 +1,4 @@
-name: CD Pipeline - Lab4 Docker Compose
+name: Deploy Lab4
 
 on:
   push:
@@ -9,94 +9,130 @@ env:
   SSH_HOST: 'course.prafdin.ru'
   SSH_PORT: '2481'
   SSH_USERNAME: 'alexey'
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-        
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    
-    - name: Build and push Backend image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab-backend:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab-backend:${{ github.sha }}
-    
-    - name: Deploy to VM with Docker Compose
-      uses: appleboy/ssh-action@v1
-      with:
-        host: ${{ env.SSH_HOST }}
-        port: ${{ env.SSH_PORT }}
-        username: ${{ env.SSH_USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          set -e
-          echo "=== Starting Docker Compose deployment - belov ==="
-          
-          cd /home/alexey/devops-lab
-          
-          # Login to Docker Hub
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-          
-          echo "=== Pulling latest Docker images ==="
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab-backend:latest
-          
-          echo "=== Stopping any existing containers ==="
-          docker compose down || true
-          
-          echo "=== Checking port 8282 ==="
-          sudo ss -tulpn | grep 8281 && echo "Port 8281 is in use, killing process..." && sudo fuser -k 8281/tcp || echo "Port 8281 is free"
-          
-          echo "=== Deploying with Docker Compose ==="
-          docker compose up -d
-          
-          echo "=== Waiting for containers to start ==="
-          sleep 10
-          
-          echo "=== Diagnostic information ==="
-          echo "1. Container status:"
-          docker compose ps
-          echo ""
-          
-          echo "2. Testing static files..."
-          if curl -s http://localhost:8282/ | grep -q "belov"; then
-            echo "✅ Static files working and contains student name!"
-          else
-            echo "❌ Static files failed"
-            docker compose logs frontend --tail=10
-          fi
-          echo ""
-          
-          echo "3. Testing API..."
-          if curl -s http://localhost:8282/api/health | grep -q "healthy"; then
-            echo "✅ API working!"
-          else
-            echo "❌ API failed"
-            docker compose logs backend --tail=10
-          fi
-          echo ""
-          
-          echo "=== Cleaning up ==="
-          docker image prune -f
-          
-          echo "=== Deployment completed successfully! ==="
-          echo "Application should be available at:"
-          echo "- Internal: http://localhost:8282"
-          echo "- External: http://app.belov.course.prafdin.ru"
-EOF
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_timeout: '5m'
+          script: |
+            set -e
+            echo "=== Начало деплоя Lab4 ==="
+            echo "Время: $(date)"
+            
+            # Переходим в директорию
+            cd /home/alexey/devops-lab
+            echo "Директория: $(pwd)"
+            
+            # ОСТАНАВЛИВАЕМ ВСЁ ЧТО МЕШАЕТ
+            echo "=== Остановка всех мешающих контейнеров ==="
+            
+            # 1. Останавливаем старый devops-app (lab1/lab2/lab3)
+            docker stop devops-app 2>/dev/null || echo "devops-app не запущен"
+            docker rm devops-app 2>/dev/null || echo "devops-app не существует"
+            
+            # 2. Останавливаем static-site-container
+            docker stop static-site-container 2>/dev/null || echo "static-site-container не запущен"
+            docker rm static-site-container 2>/dev/null || echo "static-site-container не существует"
+            
+            # 3. Останавливаем все контейнеры на порту 8282
+            echo "Освобождаем порт 8282..."
+            sudo fuser -k 8282/tcp 2>/dev/null || true
+            sudo fuser -k 8181/tcp 2>/dev/null || true
+            
+            # 4. Останавливаем nginx если он запущен
+            sudo systemctl stop nginx 2>/dev/null || true
+            
+            sleep 3
+            
+            # Проверяем что порты свободны
+            echo "Проверка портов:"
+            sudo ss -tulpn | grep -E ':(8282|8181)' || echo "Порты свободны!"
+            
+            # Проверяем Docker
+            echo "=== Проверка Docker ==="
+            docker --version
+            docker compose version || {
+              echo "Установка Docker Compose..."
+              sudo apt-get update
+              sudo apt-get install -y docker-compose-plugin
+            }
+            
+            # Останавливаем Docker Compose если запущен
+            echo "=== Остановка Docker Compose (если запущен) ==="
+            if [ -f docker-compose.yml ]; then
+              docker compose down 2>/dev/null || echo "Docker Compose не запущен"
+            fi
+            
+            # Запускаем Docker Compose для lab4
+            echo "=== Запуск Docker Compose (Lab4) ==="
+            docker compose up -d --build
+            
+            # Ждем запуска
+            echo "=== Ожидание запуска... ==="
+            sleep 25
+            
+            # Проверяем статус
+            echo "=== Статус контейнеров ==="
+            docker compose ps
+            
+            # Простые тесты
+            echo "=== Тестирование ==="
+            
+            # Тест 1: Проверка доступности
+            echo -n "Проверка порта 8282: "
+            if curl -s --max-time 10 http://localhost:8282/ >/dev/null; then
+              echo "✅ Доступен"
+            else
+              echo "❌ Недоступен"
+              echo "Логи frontend:"
+              docker compose logs frontend --tail=20
+              exit 1
+            fi
+            
+            # Тест 2: Проверка имени студента
+            echo -n "Поиск имени 'belov' на странице: "
+            if curl -s http://localhost:8282/ | grep -q "belov"; then
+              echo "✅ Найдено"
+            else
+              echo "❌ Не найдено"
+              echo "Содержимое страницы (первые 200 символов):"
+              curl -s http://localhost:8282/ | head -c 200
+              echo ""
+              exit 1
+            fi
+            
+            # Тест 3: Проверка API
+            echo -n "Проверка API /api/health: "
+            if curl -s --max-time 10 http://localhost:8282/api/health 2>/dev/null | grep -q "healthy"; then
+              echo "✅ Работает"
+            else
+              echo "⚠️ Может не работать (проверьте вручную)"
+              echo "Логи backend:"
+              docker compose logs backend --tail=20
+            fi
+            
+            echo ""
+            echo "=== Деплой Lab4 успешно завершен! ==="
+            echo ""
+            echo "📊 Итоговая информация:"
+            echo "👤 Студент: belov"
+            echo "🔢 Лаба: 4 (Docker Compose)"
+            echo "🐳 Контейнеры: 2 (frontend + backend)"
+            echo "🔗 Внутренний URL: http://localhost:8282"
+            echo "🌐 Внешний URL: http://app.belov.course.prafdin.ru"
+            echo ""
+            echo "🛠 Команды для проверки:"
+            echo "  docker compose ps          # статус"
+            echo "  docker compose logs -f    # логи"
+            echo "  curl http://localhost:8282/api/health  # проверка API"
+            echo "  curl http://app.belov.course.prafdin.ru  # проверка внешнего доступа"
