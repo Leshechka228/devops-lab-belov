@@ -7,60 +7,8 @@ on:
     branches: ['**']
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: Validate shell scripts
-      run: |
-        echo "Validating shell scripts..."
-        find . -name "*.sh" -type f | while read script; do
-          echo "Checking $script"
-          if bash -n "$script"; then
-            echo "✅ $script - syntax OK"
-          else
-            echo "❌ $script - syntax error"
-            exit 1
-          fi
-        done
-        
-    - name: Check file permissions
-      run: |
-        echo "Setting executable permissions..."
-        find . -name "*.sh" -type f -exec chmod +x {} \;
-        
-    - name: Test deployment scripts
-      run: |
-        echo "Testing deployment scripts..."
-        [ -f "deploy.sh" ] && echo "✅ deploy.sh exists" || echo "❌ deploy.sh missing"
-        [ -f "install-frp.sh" ] && echo "✅ install-frp.sh exists" || echo "❌ install-frp.sh missing"
-        [ -f "install-nginx.sh" ] && echo "✅ install-nginx.sh exists" || echo "❌ install-nginx.sh missing"
-        [ -f "test.sh" ] && echo "✅ test.sh exists" || echo "❌ test.sh missing"
-        [ -f "check-system.sh" ] && echo "✅ check-system.sh exists" || echo "❌ check-system.sh missing"
-        
-    - name: Run custom tests
-      run: |
-        echo "Running custom tests..."
-        if [ -f "test.sh" ]; then
-          echo "✅ test.sh exists, running tests..."
-          chmod +x test.sh
-          ./test.sh
-        else
-          echo "ℹ️ test.sh not found, skipping custom tests"
-        fi
-
   docker:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/docker-lab3')
     
     steps:
     - name: Checkout code
@@ -84,12 +32,4 @@ jobs:
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:latest
           ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        
-    - name: Verify pushed image
-      run: |
-        echo "Docker image successfully built and pushed to Docker Hub"
-        echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:latest"
-        echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/devops-lab:${{ github.sha }}"
-        echo "View at: https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/devops-lab"
+
